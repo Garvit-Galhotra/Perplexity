@@ -1,5 +1,7 @@
 # Perplexity
 
+Making the clone of Perplexity
+
 # Features
 
 1. Authentication system
@@ -31,3 +33,4 @@
    - chat.\_id
    - content
    - role: [user, ai]
+
