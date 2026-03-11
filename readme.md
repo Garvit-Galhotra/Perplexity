@@ -4,7 +4,7 @@ Making the clone of Perplexity
 
 # Features
 
-1. Authentication system
+1. Authentication system 
 2. Chat with AI
 3. Maintaining the chat history
 4. Message Storage

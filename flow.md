@@ -6,3 +6,4 @@
 4. added a validator
 5. making the routes for authentication (register)
 6. sending a mail to user for verifying
+    
