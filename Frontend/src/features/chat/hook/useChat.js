@@ -19,14 +19,16 @@ export const useChat = () => {
   async function handleSendMessage({ message, chatId }) {
     try {
       dispatch(setLoading(true));
-      const data = await sendMessage({ message, chatId }); // send back aimessage and chatid
+      const data = await sendMessage({ message, chatId });
       const { chat, aiMessage } = data;
+
       dispatch(
         createNewChat({
           chatId: chat._id,
           title: chat.title,
         }),
       );
+
       dispatch(
         addNewMessage({
           chatId: chat._id,
@@ -75,7 +77,6 @@ export const useChat = () => {
   }
 
   async function handleOpenChat(chatId) {
-    // Check if messages are already loaded for this chat
     if (chats[chatId]?.messagesLoaded) {
       dispatch(setCurrentChatId(chatId));
       return;

@@ -9,6 +9,8 @@ export async function sendMessage(req, res) {
   let title = null;
   let chat = null;
 
+  const chatExists = await chatModel.findById(chatId);
+
   if (!chatId) {
     title = await generateChatTitle(message);
 
@@ -25,7 +27,8 @@ export async function sendMessage(req, res) {
   });
 
   const messages = await messageModel.find({ chat: chatId || chat._id });
-  const result = await generateResponse(message);
+
+  const result = await generateResponse(messages);
 
   const aiMessage = await messageModel.create({
     chat: chatId || chat._id,
@@ -35,8 +38,8 @@ export async function sendMessage(req, res) {
 
   res.json({
     message: result,
-    chat: chat,
-    title: title,
+    chatId: chat || chatExists,
+    title: title || chatExists.title,
     aiMessage,
   });
 }
