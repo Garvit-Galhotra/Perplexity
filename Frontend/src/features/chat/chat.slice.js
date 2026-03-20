@@ -5,7 +5,7 @@ const chatSlice = createSlice({
   initialState: {
     chats: {},
     currentChatId: null,
-    isLoading: false,
+    loading: false,
     error: null,
   },
   reducers: {
@@ -27,26 +27,13 @@ const chatSlice = createSlice({
       state.chats[chatId].messages.push(...messages);
     },
     setChats: (state, action) => {
-      // Initialize all chats with messagesLoaded flag
-      const chats = action.payload;
-      Object.keys(chats).forEach((key) => {
-        if (!chats[key].messagesLoaded) {
-          chats[key].messagesLoaded = false;
-        }
-      });
-      state.chats = chats;
-    },
-    setMessagesLoaded: (state, action) => {
-      const { chatId } = action.payload;
-      if (state.chats[chatId]) {
-        state.chats[chatId].messagesLoaded = true;
-      }
+      state.chats = action.payload;
     },
     setCurrentChatId: (state, action) => {
       state.currentChatId = action.payload;
     },
     setLoading: (state, action) => {
-      state.isLoading = action.payload;
+      state.loading = action.payload;
     },
     setError: (state, action) => {
       state.error = action.payload;
@@ -62,6 +49,5 @@ export const {
   createNewChat,
   addNewMessage,
   addMessages,
-  setMessagesLoaded,
 } = chatSlice.actions;
 export default chatSlice.reducer;

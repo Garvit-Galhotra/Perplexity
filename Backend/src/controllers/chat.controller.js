@@ -3,6 +3,8 @@ import { generateChatTitle } from "../services/ai.service.js";
 import messageModel from "../models/message.model.js";
 import chatModel from "../models/chat.model.js";
 
+// take message and chat from body
+// gives message and chatId, title, aiMessage
 export async function sendMessage(req, res) {
   const { message, chat: chatId } = req.body;
 
@@ -38,11 +40,14 @@ export async function sendMessage(req, res) {
 
   res.json({
     message: result,
-    chatId: chat || chatExists,
+    chat: chat || chatExists,
     title: title || chatExists.title,
     aiMessage,
   });
 }
+
+// take nothing
+// gives array of chats with title and id
 
 export async function getChats(req, res) {
   const user = req.user;
@@ -54,6 +59,9 @@ export async function getChats(req, res) {
     chats,
   });
 }
+
+// Takes chatId from params
+// gives array of messages with content and role
 
 export async function getMessages(req, res) {
   const { chatId } = req.params;
@@ -78,6 +86,9 @@ export async function getMessages(req, res) {
     messages,
   });
 }
+
+// takes chatId from params
+// gives success message if deleted successfully
 
 export async function deleteChat(req, res) {
   const { chatId } = req.params;
