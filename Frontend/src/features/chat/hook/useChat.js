@@ -11,8 +11,11 @@ import {
   //   setError,
   setLoading,
   createNewChat,
+  removeChat,
   addNewMessage,
   addMessages,
+  setPendingMessage,
+  setShowPendingChatSkeleton,
 } from "../chat.slice";
 import { useDispatch } from "react-redux";
 
@@ -21,13 +24,12 @@ export const useChat = () => {
 
   async function handleSendMessage({ message, chatId }) {
     try {
-      // If this is a new chat, create it first
       if (!chatId) {
-        dispatch(setLoading(true));
-      }
-
-      // Add user message immediately (before loading state)
-      if (chatId) {
+        // For new chats, show pending message and skeleton
+        dispatch(setPendingMessage(message));
+        dispatch(setShowPendingChatSkeleton(true));
+      } else {
+        // For existing chats, add user message immediately
         dispatch(
           addNewMessage({
             chatId,
@@ -37,10 +39,10 @@ export const useChat = () => {
         );
       }
 
-      // Now set loading for AI response
+      // Set loading for AI response
       dispatch(setLoading(true));
 
-      // Send message to backend (it will create chat if needed)
+      // Send message to backend
       const data = await sendMessage({ message, chatId });
       const { chat, aiMessage } = data;
 
@@ -61,9 +63,11 @@ export const useChat = () => {
             role: "user",
           }),
         );
-      }
 
-      console.log(chat, aiMessage);
+        // Clear pending states
+        dispatch(setPendingMessage(null));
+        dispatch(setShowPendingChatSkeleton(false));
+      }
 
       // Add AI response
       dispatch(
@@ -77,6 +81,9 @@ export const useChat = () => {
       dispatch(setCurrentChatId(chat._id));
     } catch (error) {
       console.error("Error sending message:", error);
+      // Clear pending states on error
+      dispatch(setPendingMessage(null));
+      dispatch(setShowPendingChatSkeleton(false));
     } finally {
       dispatch(setLoading(false));
     }

@@ -7,6 +7,8 @@ const chatSlice = createSlice({
     currentChatId: null,
     loading: false,
     error: null,
+    pendingMessage: null,
+    showPendingChatSkeleton: false,
   },
   reducers: {
     createNewChat: (state, action) => {
@@ -17,6 +19,10 @@ const chatSlice = createSlice({
         messages: [],
         lastUpdated: new Date().toISOString(),
       };
+    },
+    removeChat: (state, action) => {
+      const { chatId } = action.payload;
+      delete state.chats[chatId];
     },
     addNewMessage: (state, action) => {
       const { chatId, content, role } = action.payload;
@@ -38,6 +44,12 @@ const chatSlice = createSlice({
     setError: (state, action) => {
       state.error = action.payload;
     },
+    setPendingMessage: (state, action) => {
+      state.pendingMessage = action.payload;
+    },
+    setShowPendingChatSkeleton: (state, action) => {
+      state.showPendingChatSkeleton = action.payload;
+    },
   },
 });
 
@@ -47,7 +59,10 @@ export const {
   setLoading,
   setError,
   createNewChat,
+  removeChat,
   addNewMessage,
   addMessages,
+  setPendingMessage,
+  setShowPendingChatSkeleton,
 } = chatSlice.actions;
 export default chatSlice.reducer;

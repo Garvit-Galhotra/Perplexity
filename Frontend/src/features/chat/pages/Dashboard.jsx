@@ -35,6 +35,95 @@ const MessageSkeleton = ({ isUser = false }) => (
   </div>
 );
 
+const TypingText = ({ text, onComplete, speed = 20 }) => {
+  const [displayedText, setDisplayedText] = useState("");
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (currentIndex < text.length) {
+      const timer = setTimeout(() => {
+        setDisplayedText((prev) => prev + text[currentIndex]);
+        setCurrentIndex((prev) => prev + 1);
+      }, speed);
+      return () => clearTimeout(timer);
+    } else {
+      onComplete?.();
+    }
+  }, [currentIndex, text, speed, onComplete]);
+
+  useEffect(() => {
+    setDisplayedText("");
+    setCurrentIndex(0);
+  }, [text]);
+
+  // Auto-scroll during typing
+  useEffect(() => {
+    if (displayedText) {
+      const messagesContainer = document.querySelector(".messages-container");
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    }
+  }, [displayedText]);
+
+  return (
+    <ReactMarkdown
+      components={{
+        p: ({ children }) => (
+          <p className="mb-2 wrap-break-words last:mb-0">{children}</p>
+        ),
+        ul: ({ children }) => (
+          <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>
+        ),
+        li: ({ children }) => (
+          <li className="wrap-break-words text-white/80">{children}</li>
+        ),
+        code: ({ inline, children }) =>
+          inline ? (
+            <code className="rounded bg-white/10 px-2 py-1 font-mono text-xs text-cyan-300">
+              {children}
+            </code>
+          ) : (
+            <code className="block rounded bg-white/10 px-2 py-1 font-mono text-xs text-cyan-300">
+              {children}
+            </code>
+          ),
+        pre: ({ children }) => (
+          <pre className="mb-2 overflow-x-auto rounded-xl bg-black/50 p-4 text-xs">
+            {children}
+          </pre>
+        ),
+        blockquote: ({ children }) => (
+          <blockquote className="mb-2 border-l-4 border-cyan-500/50 pl-4 italic text-white/70">
+            {children}
+          </blockquote>
+        ),
+        strong: ({ children }) => (
+          <strong className="font-semibold text-white">{children}</strong>
+        ),
+        em: ({ children }) => (
+          <em className="italic text-white/80">{children}</em>
+        ),
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-400 underline hover:text-cyan-300"
+          >
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {displayedText}
+    </ReactMarkdown>
+  );
+};
+
 const Dashboard = () => {
   const chat = useChat();
   const [chatInput, setChatInput] = useState("");
@@ -43,6 +132,11 @@ const Dashboard = () => {
   const currentChatId = useSelector((state) => state.chat.currentChatId);
   const loading = useSelector((state) => state.chat.loading);
   const error = useSelector((state) => state.chat.error);
+  const pendingMessage = useSelector((state) => state.chat.pendingMessage);
+  const showPendingChatSkeleton = useSelector(
+    (state) => state.chat.showPendingChatSkeleton,
+  );
+  const [typingMessageId, setTypingMessageId] = useState(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -50,7 +144,21 @@ const Dashboard = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [chats[currentChatId]?.messages, loading]);
+  }, [chats[currentChatId]?.messages, loading, typingMessageId]);
+
+  // Start typing animation for new AI messages
+  useEffect(() => {
+    if (currentChatId && chats[currentChatId]?.messages) {
+      const messages = chats[currentChatId].messages;
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === "assistant" && !loading) {
+        const messageId = `${currentChatId}-${messages.length - 1}`;
+        if (typingMessageId !== messageId) {
+          setTypingMessageId(messageId);
+        }
+      }
+    }
+  }, [chats, currentChatId, loading, typingMessageId]);
 
   const openChat = (chatId) => {
     console.log(chatId);
@@ -92,9 +200,14 @@ const Dashboard = () => {
             <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
               Chat History
             </p>
-            {loading && Object.keys(chats).length === 0 ? (
+            {showPendingChatSkeleton && (
+              <div className="h-12 rounded-xl bg-white/5 animate-pulse" />
+            )}
+            {loading &&
+            Object.keys(chats).length === 0 &&
+            !showPendingChatSkeleton ? (
               <ChatListSkeleton />
-            ) : Object.keys(chats).length === 0 ? (
+            ) : Object.keys(chats).length === 0 && !showPendingChatSkeleton ? (
               <p className="text-center text-xs text-white/40 py-8">
                 No chats yet
               </p>
@@ -125,7 +238,7 @@ const Dashboard = () => {
         {/* Main Content */}
         <section className="relative flex h-full flex-1 flex-col gap-4 rounded-2xl border border-white/5 bg-white/1 backdrop-blur-sm">
           {/* Messages Area */}
-          <div className="flex-1 space-y-6 overflow-y-auto px-4 py-6 md:px-6 md:py-8">
+          <div className="messages-container flex-1 space-y-6 overflow-y-auto px-4 py-6 md:px-6 md:py-8">
             {error && (
               <div className="mx-auto max-w-3xl rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300 pb-20">
                 <p className="font-semibold">Error</p>
@@ -134,22 +247,33 @@ const Dashboard = () => {
             )}
 
             {!currentChatId ? (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <div className="mb-4 text-5xl">🔍</div>
-                  <h2 className="mb-2 text-2xl font-semibold">
-                    <ReactMarkdown>
-                      {chats && Object.values(chats).length > 0
-                        ? "Welcome back!"
-                        : "Welcome to Perplexity"}
-                    </ReactMarkdown>
-                  </h2>
-                  <p className="text-white/50">
-                    Select a chat from the sidebar or create a new one to get
-                    started
-                  </p>
+              pendingMessage ? (
+                <div className="mx-auto max-w-3xl space-y-6 pb-4">
+                  <div className="flex animate-fadeIn justify-end">
+                    <div className="max-w-[85%] rounded-2xl px-5 py-4 text-sm md:text-base rounded-br-none border border-cyan-500/30 bg-linear-to-r from-cyan-500/20 to-blue-500/20 text-white shadow-lg shadow-cyan-500/10">
+                      <p className="wrap-break-word">{pendingMessage}</p>
+                    </div>
+                  </div>
+                  {loading && <MessageSkeleton isUser={false} />}
                 </div>
-              </div>
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <div className="mb-4 text-5xl">🔍</div>
+                    <h2 className="mb-2 text-2xl font-semibold">
+                      <ReactMarkdown>
+                        {chats && Object.values(chats).length > 0
+                          ? "Welcome back!"
+                          : "Welcome to Perplexity"}
+                      </ReactMarkdown>
+                    </h2>
+                    <p className="text-white/50">
+                      Select a chat from the sidebar or create a new one to get
+                      started
+                    </p>
+                  </div>
+                </div>
+              )
             ) : (
               <div className="mx-auto max-w-3xl space-y-6 pb-4">
                 {chats[currentChatId]?.messages.length === 0 ? (
@@ -179,72 +303,93 @@ const Dashboard = () => {
                           {message.role === "user" ? (
                             <p className="wrap-break-word">{message.content}</p>
                           ) : (
-                            <ReactMarkdown
-                              components={{
-                                p: ({ children }) => (
-                                  <p className="mb-2 wrap-break-words last:mb-0">
-                                    {children}
-                                  </p>
-                                ),
-                                ul: ({ children }) => (
-                                  <ul className="mb-2 list-disc space-y-1 pl-5">
-                                    {children}
-                                  </ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol className="mb-2 list-decimal space-y-1 pl-5">
-                                    {children}
-                                  </ol>
-                                ),
-                                li: ({ children }) => (
-                                  <li className="wrap-break-words text-white/80">
-                                    {children}
-                                  </li>
-                                ),
-                                code: ({ inline, children }) =>
-                                  inline ? (
-                                    <code className="rounded bg-white/10 px-2 py-1 font-mono text-xs text-cyan-300">
-                                      {children}
-                                    </code>
-                                  ) : (
-                                    <code className="block rounded bg-white/10 px-2 py-1 font-mono text-xs text-cyan-300">
-                                      {children}
-                                    </code>
-                                  ),
-                                pre: ({ children }) => (
-                                  <pre className="mb-2 overflow-x-auto rounded-xl bg-black/50 p-4 text-xs">
-                                    {children}
-                                  </pre>
-                                ),
-                                blockquote: ({ children }) => (
-                                  <blockquote className="mb-2 border-l-4 border-cyan-500/50 pl-4 italic text-white/70">
-                                    {children}
-                                  </blockquote>
-                                ),
-                                strong: ({ children }) => (
-                                  <strong className="font-semibold text-white">
-                                    {children}
-                                  </strong>
-                                ),
-                                em: ({ children }) => (
-                                  <em className="italic text-white/80">
-                                    {children}
-                                  </em>
-                                ),
-                                a: ({ href, children }) => (
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-cyan-400 underline hover:text-cyan-300"
-                                  >
-                                    {children}
-                                  </a>
-                                ),
-                              }}
-                            >
-                              {message.content}
-                            </ReactMarkdown>
+                            <div>
+                              {(() => {
+                                const messageId = `${currentChatId}-${idx}`;
+                                const isTyping = typingMessageId === messageId;
+
+                                if (isTyping) {
+                                  return (
+                                    <TypingText
+                                      text={message.content}
+                                      speed={20}
+                                      onComplete={() =>
+                                        setTypingMessageId(null)
+                                      }
+                                    />
+                                  );
+                                } else {
+                                  return (
+                                    <ReactMarkdown
+                                      components={{
+                                        p: ({ children }) => (
+                                          <p className="mb-2 wrap-break-words last:mb-0">
+                                            {children}
+                                          </p>
+                                        ),
+                                        ul: ({ children }) => (
+                                          <ul className="mb-2 list-disc space-y-1 pl-5">
+                                            {children}
+                                          </ul>
+                                        ),
+                                        ol: ({ children }) => (
+                                          <ol className="mb-2 list-decimal space-y-1 pl-5">
+                                            {children}
+                                          </ol>
+                                        ),
+                                        li: ({ children }) => (
+                                          <li className="wrap-break-words text-white/80">
+                                            {children}
+                                          </li>
+                                        ),
+                                        code: ({ inline, children }) =>
+                                          inline ? (
+                                            <code className="rounded bg-white/10 px-2 py-1 font-mono text-xs text-cyan-300">
+                                              {children}
+                                            </code>
+                                          ) : (
+                                            <code className="block rounded bg-white/10 px-2 py-1 font-mono text-xs text-cyan-300">
+                                              {children}
+                                            </code>
+                                          ),
+                                        pre: ({ children }) => (
+                                          <pre className="mb-2 overflow-x-auto rounded-xl bg-black/50 p-4 text-xs">
+                                            {children}
+                                          </pre>
+                                        ),
+                                        blockquote: ({ children }) => (
+                                          <blockquote className="mb-2 border-l-4 border-cyan-500/50 pl-4 italic text-white/70">
+                                            {children}
+                                          </blockquote>
+                                        ),
+                                        strong: ({ children }) => (
+                                          <strong className="font-semibold text-white">
+                                            {children}
+                                          </strong>
+                                        ),
+                                        em: ({ children }) => (
+                                          <em className="italic text-white/80">
+                                            {children}
+                                          </em>
+                                        ),
+                                        a: ({ href, children }) => (
+                                          <a
+                                            href={href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-cyan-400 underline hover:text-cyan-300"
+                                          >
+                                            {children}
+                                          </a>
+                                        ),
+                                      }}
+                                    >
+                                      {message.content}
+                                    </ReactMarkdown>
+                                  );
+                                }
+                              })()}
+                            </div>
                           )}
                         </div>
                       </div>
