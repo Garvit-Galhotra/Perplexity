@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: "https://perplexity-iyce.onrender.com", credentials: true }));
 app.use(morgan("dev"));
 
 app.use("/api/auth", authRouter);
